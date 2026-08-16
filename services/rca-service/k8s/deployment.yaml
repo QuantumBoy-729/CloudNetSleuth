@@ -11,22 +11,54 @@ spec:
     matchLabels:
       app: rca-service
       platform: cloudnetsleuth
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
         app: rca-service
         platform: cloudnetsleuth
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
     spec:
+      # preStop drain (5s) + uvicorn graceful shutdown (20s) fits inside this budget.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: rca-service
         image: cloudnetsleuth/rca-service:latest
+        imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8080
+        - name: http
+          containerPort: 8080
         env:
         - name: RCA_ENVIRONMENT
           value: "production"
         - name: RCA_LOG_LEVEL
           value: "INFO"
+        - name: RCA_DEFAULT_STRATEGY
+          value: "pearson"
+        - name: RCA_ENABLED_STRATEGIES
+          value: "pearson,spearman"
+        - name: RCA_TOP_K_CAUSES
+          value: "3"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         resources:
           requests:
             cpu: "100m"
@@ -34,16 +66,38 @@ spec:
           limits:
             cpu: "500m"
             memory: "512Mi"
+        startupProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          periodSeconds: 3
+          failureThreshold: 10
         livenessProbe:
           httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 5
+            path: /health/live
+            port: http
           periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 10
-
+            path: /health/ready
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 2
+        lifecycle:
+          preStop:
+            # This is the real drain window. It runs *before* SIGTERM, so the
+            # app keeps serving normally while endpoint removal propagates
+            # cluster-wide. Once SIGTERM lands, uvicorn closes the listening
+            # socket and readiness stops being reachable at all.
+            exec:
+              command: ["sleep", "5"]
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      # readOnlyRootFilesystem still needs a writable scratch dir.
+      - name: tmp
+        emptyDir: {}

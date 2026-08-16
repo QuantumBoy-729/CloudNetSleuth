@@ -1,2 +1,1 @@
 """RCA strategy package."""
-

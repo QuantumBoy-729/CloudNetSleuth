@@ -6,12 +6,12 @@ metadata:
     app: rca-service
     platform: cloudnetsleuth
 spec:
+  type: ClusterIP
   selector:
     app: rca-service
     platform: cloudnetsleuth
   ports:
   - name: http
     port: 80
-    targetPort: 8080
+    targetPort: http
     protocol: TCP
-
