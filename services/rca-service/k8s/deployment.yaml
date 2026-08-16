@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rca-service
+  labels:
+    app: rca-service
+    platform: cloudnetsleuth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rca-service
+      platform: cloudnetsleuth
+  template:
+    metadata:
+      labels:
+        app: rca-service
+        platform: cloudnetsleuth
+    spec:
+      containers:
+      - name: rca-service
+        image: cloudnetsleuth/rca-service:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: RCA_ENVIRONMENT
+          value: "production"
+        - name: RCA_LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+

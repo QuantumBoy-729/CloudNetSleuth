@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rca-service
+  labels:
+    app: rca-service
+    platform: cloudnetsleuth
+spec:
+  selector:
+    app: rca-service
+    platform: cloudnetsleuth
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+
