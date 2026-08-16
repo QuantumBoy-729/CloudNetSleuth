@@ -1,0 +1,13 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+tests/
+k8s/
+README.md
+requirements-dev.txt
+.env
+.env.*
+.git/
