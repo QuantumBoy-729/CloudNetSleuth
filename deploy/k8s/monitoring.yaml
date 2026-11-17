@@ -1,0 +1,100 @@
+# Prometheus + Grafana for CloudNetSleuth (demo-grade, single replica, no persistence).
+# Grafana dashboards: create the ConfigMaps first, see README ("Kubernetes").
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  labels: { app: prometheus, platform: cloudnetsleuth }
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 5s
+    scrape_configs:
+      - job_name: log-ingestor
+        static_configs: [{ targets: ["log-ingestor:8081"] }]
+      - job_name: rca-service
+        static_configs: [{ targets: ["rca-service:80"] }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  labels: { app: prometheus, platform: cloudnetsleuth }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: prometheus, platform: cloudnetsleuth }
+  template:
+    metadata:
+      labels: { app: prometheus, platform: cloudnetsleuth }
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.55.1
+        args: ["--config.file=/etc/prometheus/prometheus.yml"]
+        ports: [{ containerPort: 9090 }]
+        volumeMounts: [{ name: config, mountPath: /etc/prometheus }]
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+        livenessProbe: { httpGet: { path: /-/healthy, port: 9090 }, initialDelaySeconds: 10 }
+        readinessProbe: { httpGet: { path: /-/ready, port: 9090 }, initialDelaySeconds: 5 }
+      volumes:
+      - name: config
+        configMap: { name: prometheus-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  labels: { app: prometheus, platform: cloudnetsleuth }
+spec:
+  selector: { app: prometheus, platform: cloudnetsleuth }
+  ports: [{ name: http, port: 9090, targetPort: 9090 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  labels: { app: grafana, platform: cloudnetsleuth }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: grafana, platform: cloudnetsleuth }
+  template:
+    metadata:
+      labels: { app: grafana, platform: cloudnetsleuth }
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:11.3.1
+        ports: [{ containerPort: 3000 }]
+        env:
+        - { name: GF_AUTH_ANONYMOUS_ENABLED, value: "true" }
+        - { name: GF_AUTH_ANONYMOUS_ORG_ROLE, value: Viewer }
+        - { name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH, value: /var/lib/grafana/dashboards/cloudnetsleuth.json }
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: grafana-admin, key: password, optional: true }
+        volumeMounts:
+        - { name: datasources, mountPath: /etc/grafana/provisioning/datasources }
+        - { name: dashboard-providers, mountPath: /etc/grafana/provisioning/dashboards }
+        - { name: dashboards, mountPath: /var/lib/grafana/dashboards }
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+        livenessProbe: { httpGet: { path: /api/health, port: 3000 }, initialDelaySeconds: 15 }
+        readinessProbe: { httpGet: { path: /api/health, port: 3000 }, initialDelaySeconds: 10 }
+      volumes:
+      - { name: datasources, configMap: { name: grafana-datasources } }
+      - { name: dashboard-providers, configMap: { name: grafana-dashboard-providers } }
+      - { name: dashboards, configMap: { name: grafana-dashboards } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  labels: { app: grafana, platform: cloudnetsleuth }
+spec:
+  selector: { app: grafana, platform: cloudnetsleuth }
+  ports: [{ name: http, port: 3000, targetPort: 3000 }]

@@ -1,0 +1,81 @@
+{
+  "uid": "cloudnetsleuth-overview",
+  "title": "CloudNetSleuth - Network Observability & RCA",
+  "tags": ["cloudnetsleuth"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Platform health (targets up)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(up)", "legendFormat": "targets up" }],
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 2 }] } }, "overrides": [] }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Active RCA findings",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "count(cns_rca_finding_active) or vector(0)", "legendFormat": "findings" }],
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 3 }] } }, "overrides": [] }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Log events / s",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rate(cns_log_events_total[1m]))", "legendFormat": "events/s" }],
+      "fieldConfig": { "defaults": { "unit": "ops", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Parse failures (total)",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(cns_log_parse_failures_total) or vector(0)", "legendFormat": "failures" }]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Failure events / s by category",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (category) (rate(cns_log_events_total{category!=\"other\"}[1m]))", "legendFormat": "{{category}}" }],
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "fillOpacity": 20 } }, "overrides": [] }
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Error rate by service (share of events)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (service) (rate(cns_log_events_total{level=~\"ERROR|FATAL|CRITICAL\"}[1m])) / sum by (service) (rate(cns_log_events_total[1m]))", "legendFormat": "{{service}}" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] }
+    },
+    {
+      "id": 7, "type": "table", "title": "RCA findings (rules engine)",
+      "gridPos": { "h": 8, "w": 14, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "cns_rca_finding_active", "instant": true, "format": "table" }],
+      "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true }, "renameByName": { "Value": "signal value" } } }]
+    },
+    {
+      "id": 8, "type": "bargauge", "title": "Suspected root cause (correlation score)",
+      "gridPos": { "h": 8, "w": 10, "x": 14, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "cns_rca_top_cause_score", "legendFormat": "{{service}}" }],
+      "options": { "orientation": "horizontal", "displayMode": "gradient" }
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Ingest latency p95 (s)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_latency_seconds_bucket{endpoint=\"/api/v1/logs\"}[1m])))", "legendFormat": "p95" }],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "HTTP requests / s by job and status",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (job, status) (rate(http_requests_total{endpoint!=\"/metrics\"}[1m]))", "legendFormat": "{{job}} {{status}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    }
+  ]
+}

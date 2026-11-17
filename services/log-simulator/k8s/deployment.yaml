@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-simulator
+  labels:
+    app: log-simulator
+    platform: cloudnetsleuth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-simulator
+      platform: cloudnetsleuth
+  template:
+    metadata:
+      labels:
+        app: log-simulator
+        platform: cloudnetsleuth
+    spec:
+      containers:
+      - name: log-simulator
+        image: cloudnetsleuth/log-simulator:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SIM_INGESTOR_URL
+          value: "http://log-ingestor:8081"
+        - name: SIM_FAULT_PERIOD_TICKS
+          value: "90"
+        - name: SIM_FAULT_DURATION_TICKS
+          value: "40"
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"

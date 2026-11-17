@@ -27,6 +27,12 @@ spec:
           value: "production"
         - name: RCA_LOG_LEVEL
           value: "INFO"
+        - name: RCA_INGESTOR_URL
+          value: "http://log-ingestor:8081"
+        - name: RCA_POLL_INTERVAL_SECONDS
+          value: "5"
+        - name: RCA_WINDOW_SECONDS
+          value: "30"
         resources:
           requests:
             cpu: "100m"
