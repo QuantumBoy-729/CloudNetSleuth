@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-ingestor
+  labels:
+    app: log-ingestor
+    platform: cloudnetsleuth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-ingestor
+      platform: cloudnetsleuth
+  template:
+    metadata:
+      labels:
+        app: log-ingestor
+        platform: cloudnetsleuth
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: /metrics
+    spec:
+      containers:
+      - name: log-ingestor
+        image: cloudnetsleuth/log-ingestor:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+        env:
+        - name: INGEST_ENVIRONMENT
+          value: "production"
+        - name: INGEST_LOG_LEVEL
+          value: "INFO"
+        - name: INGEST_MAX_EVENTS
+          value: "50000"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
