@@ -1,0 +1,89 @@
+# Declarative RCA rules. A rule fires for a service when the signal value >= threshold
+# and the service produced at least min_events log events in the window.
+#
+# signal: "category:<name>" (count of events in that failure category), "error_rate", "avg_latency_ms"
+rules:
+  - name: recurring_network_timeouts
+    title: Recurring network timeouts
+    signal: "category:network_timeout"
+    threshold: 5
+    min_events: 5
+    severity: critical
+    recommendation: >-
+      Check network path and dependency health: inspect NetworkPolicies, kube-proxy/CNI status and the
+      downstream service's saturation; review client timeouts/retries and add circuit breaking.
+
+  - name: connection_refused
+    title: Connections refused
+    signal: "category:connection_refused"
+    threshold: 3
+    min_events: 3
+    severity: critical
+    recommendation: >-
+      The target is not accepting connections: verify pods are Ready, the Service selector and
+      targetPort match, and that the container is listening on the expected port.
+
+  - name: dns_resolution_failures
+    title: DNS resolution failures
+    signal: "category:dns_failure"
+    threshold: 3
+    min_events: 3
+    severity: warning
+    recommendation: >-
+      Check CoreDNS pods and logs, the service name spelling/namespace, and ndots/search-domain settings.
+
+  - name: service_disruption
+    title: Service disruption (unavailable / 5xx)
+    signal: "category:service_unavailable"
+    threshold: 5
+    min_events: 5
+    severity: critical
+    recommendation: >-
+      Upstream is unavailable: check rollout status, readiness probes, HPA limits and recent deployments;
+      consider rollback if the failures began after a release.
+
+  - name: server_error_burst
+    title: Burst of HTTP 5xx responses
+    signal: "category:http_5xx"
+    threshold: 5
+    min_events: 5
+    severity: warning
+    recommendation: >-
+      Inspect application logs and recent changes for the failing service; correlate with dependency
+      timeouts reported by other services.
+
+  - name: oom_kills
+    title: Container OOM kills
+    signal: "category:oom_killed"
+    threshold: 1
+    min_events: 1
+    severity: critical
+    recommendation: >-
+      Raise the memory limit or fix the leak; check `kubectl describe pod` for last-state OOMKilled.
+
+  - name: crash_loop
+    title: Pod crash looping
+    signal: "category:crash_loop"
+    threshold: 1
+    min_events: 1
+    severity: critical
+    recommendation: >-
+      Inspect `kubectl logs --previous` and probe configuration; verify config/secrets and dependencies at start-up.
+
+  - name: high_error_rate
+    title: High error rate
+    signal: error_rate
+    threshold: 0.3
+    min_events: 10
+    severity: warning
+    recommendation: >-
+      More than 30% of log events are errors; start with the top failure category for this service.
+
+  - name: high_latency
+    title: High average latency
+    signal: avg_latency_ms
+    threshold: 1000
+    min_events: 10
+    severity: warning
+    recommendation: >-
+      Average latency exceeds 1s: check CPU throttling, downstream saturation and connection pool exhaustion.
